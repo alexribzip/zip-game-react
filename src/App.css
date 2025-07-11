@@ -1,66 +1,49 @@
-body {
-  margin: 0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f3f6f8;
-  color: #333;
-}
-
-.app {
+.App {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  max-width: 400px;
+  margin: auto;
   text-align: center;
-  padding: 2rem;
-}
-
-header {
-  margin-bottom: 1rem;
-}
-
-h1 {
-  color: #0073b1;
-  font-size: 2rem;
-  margin-bottom: 0.3rem;
-}
-
-.status {
-  font-weight: bold;
-  color: #0073b1;
-  margin-top: 0.5rem;
+  padding: 20px;
+  color: #0a66c2; /* Bleu LinkedIn */
 }
 
 .grid {
-  display: grid;
-  gap: 4px;
-  width: 320px;
-  height: 320px;
-  margin: 0 auto;
-  background: #ffffff;
-  padding: 10px;
-  border-radius: 12px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  display: inline-block;
+  user-select: none;
+  border: 2px solid #0a66c2;
+  margin-top: 20px;
+}
+
+.row {
+  display: flex;
 }
 
 .cell {
-  background: #e6f0f6;
-  border: 1px solid #b3d3ea;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: bold;
-  color: #0073b1;
+  width: 60px;
+  height: 60px;
+  border: 1px solid #0a66c2;
   display: flex;
   justify-content: center;
   align-items: center;
+  font-weight: bold;
+  font-size: 22px;
   cursor: pointer;
-  aspect-ratio: 1 / 1;
+  background-color: #f3f6f8;
+  transition: background-color 0.3s;
   user-select: none;
 }
 
+.cell.numbered {
+  background-color: #e1ecf9;
+  color: #0a66c2;
+  font-weight: 700;
+}
+
 .cell.selected {
-  background-color: #0073b1;
+  background-color: #0a66c2;
   color: white;
 }
 
-.cell.start,
-.cell.end {
-  background-color: #0073b1;
-  color: white;
-  cursor: default;
+.cell:hover {
+  background-color: #cce4f7;
 }

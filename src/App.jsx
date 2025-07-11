@@ -1,105 +1,156 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./App.css";
 
-const LEVEL_1_PATH = [
-  [0, 0], [0, 1], [0, 2], [0, 3], [0, 4],
-  [1, 4], [1, 3], [1, 2], [1, 1], [1, 0],
-  [2, 0], [2, 1], [2, 2], [2, 3], [2, 4],
-  [3, 4], [3, 3], [3, 2], [3, 1], [3, 0],
-  [4, 0], [4, 1], [4, 2], [4, 3], [4, 4],
-];
+const GRID_SIZE = 5; // 5x5 grille
+const NUMBERS_COUNT = 9; // Nombre de cases numérotées
 
-const GRID_SIZE = 5;
+// Génère une liste de positions fixes pour les chiffres 1 à NUMBERS_COUNT
+function generateNumberPositions(gridSize, count) {
+  // Pour simplifier, on place les chiffres dans la première ligne puis colonne si besoin
+  let positions = [];
+  for (let i = 0; i < count; i++) {
+    let row = Math.floor(i / gridSize);
+    let col = i % gridSize;
+    positions.push({ row, col, number: i + 1 });
+  }
+  return positions;
+}
 
 export default function App() {
-  const [path, setPath] = useState([]);
-  const [isMouseDown, setIsMouseDown] = useState(false);
-  const [grid, setGrid] = useState([]);
-  const [message, setMessage] = useState("");
+  const [numberPositions, setNumberPositions] = useState([]);
+  const [path, setPath] = useState([]); // Liste des cases {row, col} dans le chemin tracé
+  const [isDragging, setIsDragging] = useState(false);
+  const pathRef = useRef([]);
 
   useEffect(() => {
-    // Create empty grid and place 1 and 25
-    const newGrid = Array.from({ length: GRID_SIZE }, () =>
-      Array(GRID_SIZE).fill(null)
-    );
-    newGrid[0][0] = 1;
-    newGrid[4][4] = 25;
-    setGrid(newGrid);
+    setNumberPositions(generateNumberPositions(GRID_SIZE, NUMBERS_COUNT));
   }, []);
 
-  const isSameCell = (a, b) => a[0] === b[0] && a[1] === b[1];
+  // Vérifie si une case est dans numberPositions
+  function getNumberAt(row, col) {
+    const pos = numberPositions.find((p) => p.row === row && p.col === col);
+    return pos ? pos.number : null;
+  }
 
-  const handleCellEnter = (row, col) => {
-    if (!isMouseDown) return;
+  // Vérifie si la case est dans le chemin
+  function isInPath(row, col) {
+    return path.some((p) => p.row === row && p.col === col);
+  }
 
-    const current = [row, col];
-    const alreadyUsed = path.some((p) => isSameCell(p, current));
-    const start = isSameCell(current, [0, 0]);
-    const end = isSameCell(current, [4, 4]);
+  // Quand la souris passe sur une case pendant un drag
+  function handleMouseEnter(row, col) {
+    if (!isDragging) return;
 
-    if (!alreadyUsed && !start && !end) {
-      setPath([...path, current]);
+    // Si la case est déjà la dernière dans path, pas besoin de rien faire
+    if (
+      path.length > 0 &&
+      path[path.length - 1].row === row &&
+      path[path.length - 1].col === col
+    ) {
+      return;
     }
-  };
 
-  const handleMouseDown = (row, col) => {
-    if (isSameCell([row, col], [0, 0])) {
-      setIsMouseDown(true);
-      setPath([[0, 0]]);
-      setMessage("");
-    }
-  };
+    const currentNumber = getNumberAt(row, col);
 
-  const handleMouseUp = () => {
-    setIsMouseDown(false);
-    // Check if path is complete and matches solution
-    const fullPath = [...path, [4, 4]];
-    if (fullPath.length === LEVEL_1_PATH.length &&
-      fullPath.every((pos, i) => isSameCell(pos, LEVEL_1_PATH[i]))) {
-      setMessage("🎉 Bravo, niveau réussi !");
-    } else {
-      setMessage("❌ Mauvais chemin, réessaie !");
+    if (path.length === 0) {
+      // Doit commencer par la case 1 uniquement
+      if (currentNumber === 1) {
+        setPath([{ row, col }]);
+        pathRef.current = [{ row, col }];
+      }
+      return;
     }
-  };
+
+    // Récupérer dernier point du path
+    const last = path[path.length - 1];
+    const lastNumber = getNumberAt(last.row, last.col);
+
+    // Si la case est déjà dans path mais pas la dernière, on revient en arrière (undo)
+    const indexInPath = path.findIndex(
+      (p) => p.row === row && p.col === col
+    );
+    if (indexInPath !== -1) {
+      // Permet de revenir en arrière en supprimant les points après cette case
+      const newPath = path.slice(0, indexInPath + 1);
+      setPath(newPath);
+      pathRef.current = newPath;
+      return;
+    }
+
+    // Sinon on ajoute la case si elle est adjacente à la dernière case dans path
+    const dr = Math.abs(row - last.row);
+    const dc = Math.abs(col - last.col);
+
+    if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+      // On ajoute la case seulement si le numéro est le suivant dans la séquence
+      if (currentNumber === lastNumber + 1) {
+        const newPath = [...path, { row, col }];
+        setPath(newPath);
+        pathRef.current = newPath;
+      }
+    }
+  }
+
+  function handleMouseDown(row, col) {
+    const currentNumber = getNumberAt(row, col);
+    if (currentNumber === 1) {
+      setPath([{ row, col }]);
+      pathRef.current = [{ row, col }];
+      setIsDragging(true);
+    }
+  }
+
+  function handleMouseUp() {
+    setIsDragging(false);
+
+    // Optionnel : vérifier si on a bien atteint le dernier numéro
+    if (path.length === NUMBERS_COUNT) {
+      alert("Bravo, tu as complété le chemin !");
+    }
+  }
 
   return (
-    <div className="app"
-      onMouseUp={handleMouseUp}
-    >
-      <header>
-        <h1>ZIP - Niveau 1</h1>
-        <p>Trace un chemin de 1 à 25 en utilisant toutes les cases</p>
-        <p className="status">{message}</p>
-      </header>
-
-      <div className="grid"
-        style={{
-          gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
-          gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
+    <div className="App">
+      <h1>Jeu Zip amélioré</h1>
+      <div
+        className="grid"
+        onMouseLeave={() => {
+          if (isDragging) setIsDragging(false);
         }}
       >
-        {grid.map((row, rIdx) =>
-          row.map((cell, cIdx) => {
-            const pos = [rIdx, cIdx];
-            const isStart = rIdx === 0 && cIdx === 0;
-            const isEnd = rIdx === 4 && cIdx === 4;
-            const inPath = path.some((p) => isSameCell(p, pos));
-            return (
-              <div
-                key={`${rIdx}-${cIdx}`}
-                className={`cell 
-                  ${isStart ? "start" : ""}
-                  ${isEnd ? "end" : ""}
-                  ${inPath ? "selected" : ""}`}
-                onMouseDown={() => handleMouseDown(rIdx, cIdx)}
-                onMouseEnter={() => handleCellEnter(rIdx, cIdx)}
-              >
-                {isStart ? "1" : isEnd ? "25" : ""}
-              </div>
-            );
-          })
-        )}
+        {[...Array(GRID_SIZE)].map((_, row) => (
+          <div className="row" key={row}>
+            {[...Array(GRID_SIZE)].map((_, col) => {
+              const number = getNumberAt(row, col);
+              const selected = isInPath(row, col);
+              const isNext =
+                selected &&
+                path.length > 0 &&
+                path[path.length - 1].row === row &&
+                path[path.length - 1].col === col;
+
+              return (
+                <div
+                  key={col}
+                  className={`cell ${selected ? "selected" : ""} ${
+                    number ? "numbered" : ""
+                  }`}
+                  onMouseDown={() => handleMouseDown(row, col)}
+                  onMouseEnter={() => handleMouseEnter(row, col)}
+                  onMouseUp={handleMouseUp}
+                >
+                  {number || ""}
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
+      <p>
+        Trace le chemin du 1 jusqu’à {NUMBERS_COUNT} en suivant les cases numérotées
+        dans l’ordre. Tu peux revenir en arrière en repassant sur une case déjà
+        tracée.
+      </p>
     </div>
   );
 }
