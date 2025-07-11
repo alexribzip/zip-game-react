@@ -1,36 +1,28 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./App.css";
 
-const generateGrid = (size) => {
-  const total = size * size;
-  const numbers = Array.from({ length: total }, (_, i) => i + 1);
-  return shuffle(numbers).reduce(
-    (rows, key, i) => (i % size === 0 ? [...rows, [key]] : [...rows.slice(0, -1), [...rows[rows.length - 1], key]]),
-    []
-  );
-};
-
-const shuffle = (arr) => {
-  let array = [...arr];
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
+const generatePuzzle = (size) => {
+  // Exemple simple : chemin de 1 à 5 en ligne droite (à remplacer plus tard par une vraie génération)
+  const grid = Array(size).fill(null).map(() => Array(size).fill(null));
+  for (let i = 0; i < 5; i++) {
+    grid[0][i] = i + 1; // Place 1 à 5 sur la première ligne
   }
-  return array;
+  return grid;
 };
 
 export default function App() {
   const [level, setLevel] = useState(1);
   const [gridSize, setGridSize] = useState(5);
-  const [grid, setGrid] = useState(generateGrid(5));
+  const [grid, setGrid] = useState(generatePuzzle(5));
   const [path, setPath] = useState([]);
-  const [score, setScore] = useState(0);
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  const gridRef = useRef(null);
 
   useEffect(() => {
     const size = getGridSizeForLevel(level);
     setGridSize(size);
-    setGrid(generateGrid(size));
+    setGrid(generatePuzzle(size));
     setPath([]);
   }, [level]);
 
@@ -41,40 +33,56 @@ export default function App() {
     return 8;
   };
 
-  const handleClick = (value) => {
-    const expected = path.length + 1;
-    if (value === expected) {
-      setPath([...path, value]);
-      if (value === gridSize * gridSize) {
-        setScore(score + 10 * level);
-        setLevel(level + 1);
-      }
+  const handleMouseDown = (row, col) => {
+    if (grid[row][col]) return; // ignore chiffres fixes
+    setIsDrawing(true);
+    setPath([{ row, col }]);
+  };
+
+  const handleMouseEnter = (row, col) => {
+    if (!isDrawing || grid[row][col]) return;
+    const last = path[path.length - 1];
+    if (last && Math.abs(last.row - row) + Math.abs(last.col - col) === 1) {
+      setPath([...path, { row, col }]);
     }
   };
 
+  const handleMouseUp = () => {
+    setIsDrawing(false);
+    // TODO: valider le chemin ici
+  };
+
+  const isInPath = (r, c) => path.some(p => p.row === r && p.col === c);
+
   return (
-    <div className="app">
+    <div className="app" onMouseUp={handleMouseUp}>
       <header>
         <h1>ZIP GAME</h1>
         <div className="info">
           <p>Niveau : {level}</p>
-          <p>Score : {score}</p>
         </div>
       </header>
 
-      <div className="grid" style={{
-        gridTemplateColumns: `repeat(${gridSize}, 1fr)`,
-        gridTemplateRows: `repeat(${gridSize}, 1fr)`
-      }}>
-        {grid.flat().map((value) => (
-          <div
-            key={value}
-            className={`cell ${path.includes(value) ? "selected" : ""}`}
-            onClick={() => handleClick(value)}
-          >
-            {value}
-          </div>
-        ))}
+      <div
+        className="grid"
+        ref={gridRef}
+        style={{
+          gridTemplateColumns: `repeat(${gridSize}, 1fr)`,
+          gridTemplateRows: `repeat(${gridSize}, 1fr)`
+        }}
+      >
+        {grid.map((row, rIdx) =>
+          row.map((val, cIdx) => (
+            <div
+              key={`${rIdx}-${cIdx}`}
+              className={`cell ${isInPath(rIdx, cIdx) ? "selected" : val ? "fixed" : ""}`}
+              onMouseDown={() => handleMouseDown(rIdx, cIdx)}
+              onMouseEnter={() => handleMouseEnter(rIdx, cIdx)}
+            >
+              {val || path.findIndex(p => p.row === rIdx && p.col === cIdx) + 1 || ""}
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
