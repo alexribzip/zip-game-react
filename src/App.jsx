@@ -1,87 +1,103 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
 
-const generatePuzzle = (size) => {
-  // Exemple simple : chemin de 1 à 5 en ligne droite (à remplacer plus tard par une vraie génération)
-  const grid = Array(size).fill(null).map(() => Array(size).fill(null));
-  for (let i = 0; i < 5; i++) {
-    grid[0][i] = i + 1; // Place 1 à 5 sur la première ligne
-  }
-  return grid;
-};
+const LEVEL_1_PATH = [
+  [0, 0], [0, 1], [0, 2], [0, 3], [0, 4],
+  [1, 4], [1, 3], [1, 2], [1, 1], [1, 0],
+  [2, 0], [2, 1], [2, 2], [2, 3], [2, 4],
+  [3, 4], [3, 3], [3, 2], [3, 1], [3, 0],
+  [4, 0], [4, 1], [4, 2], [4, 3], [4, 4],
+];
+
+const GRID_SIZE = 5;
 
 export default function App() {
-  const [level, setLevel] = useState(1);
-  const [gridSize, setGridSize] = useState(5);
-  const [grid, setGrid] = useState(generatePuzzle(5));
   const [path, setPath] = useState([]);
-  const [isDrawing, setIsDrawing] = useState(false);
-
-  const gridRef = useRef(null);
+  const [isMouseDown, setIsMouseDown] = useState(false);
+  const [grid, setGrid] = useState([]);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const size = getGridSizeForLevel(level);
-    setGridSize(size);
-    setGrid(generatePuzzle(size));
-    setPath([]);
-  }, [level]);
+    // Create empty grid and place 1 and 25
+    const newGrid = Array.from({ length: GRID_SIZE }, () =>
+      Array(GRID_SIZE).fill(null)
+    );
+    newGrid[0][0] = 1;
+    newGrid[4][4] = 25;
+    setGrid(newGrid);
+  }, []);
 
-  const getGridSizeForLevel = (lvl) => {
-    if (lvl < 4) return 5;
-    if (lvl < 7) return 6;
-    if (lvl < 10) return 7;
-    return 8;
+  const isSameCell = (a, b) => a[0] === b[0] && a[1] === b[1];
+
+  const handleCellEnter = (row, col) => {
+    if (!isMouseDown) return;
+
+    const current = [row, col];
+    const alreadyUsed = path.some((p) => isSameCell(p, current));
+    const start = isSameCell(current, [0, 0]);
+    const end = isSameCell(current, [4, 4]);
+
+    if (!alreadyUsed && !start && !end) {
+      setPath([...path, current]);
+    }
   };
 
   const handleMouseDown = (row, col) => {
-    if (grid[row][col]) return; // ignore chiffres fixes
-    setIsDrawing(true);
-    setPath([{ row, col }]);
-  };
-
-  const handleMouseEnter = (row, col) => {
-    if (!isDrawing || grid[row][col]) return;
-    const last = path[path.length - 1];
-    if (last && Math.abs(last.row - row) + Math.abs(last.col - col) === 1) {
-      setPath([...path, { row, col }]);
+    if (isSameCell([row, col], [0, 0])) {
+      setIsMouseDown(true);
+      setPath([[0, 0]]);
+      setMessage("");
     }
   };
 
   const handleMouseUp = () => {
-    setIsDrawing(false);
-    // TODO: valider le chemin ici
+    setIsMouseDown(false);
+    // Check if path is complete and matches solution
+    const fullPath = [...path, [4, 4]];
+    if (fullPath.length === LEVEL_1_PATH.length &&
+      fullPath.every((pos, i) => isSameCell(pos, LEVEL_1_PATH[i]))) {
+      setMessage("🎉 Bravo, niveau réussi !");
+    } else {
+      setMessage("❌ Mauvais chemin, réessaie !");
+    }
   };
 
-  const isInPath = (r, c) => path.some(p => p.row === r && p.col === c);
-
   return (
-    <div className="app" onMouseUp={handleMouseUp}>
+    <div className="app"
+      onMouseUp={handleMouseUp}
+    >
       <header>
-        <h1>ZIP GAME</h1>
-        <div className="info">
-          <p>Niveau : {level}</p>
-        </div>
+        <h1>ZIP - Niveau 1</h1>
+        <p>Trace un chemin de 1 à 25 en utilisant toutes les cases</p>
+        <p className="status">{message}</p>
       </header>
 
-      <div
-        className="grid"
-        ref={gridRef}
+      <div className="grid"
         style={{
-          gridTemplateColumns: `repeat(${gridSize}, 1fr)`,
-          gridTemplateRows: `repeat(${gridSize}, 1fr)`
+          gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
+          gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
         }}
       >
         {grid.map((row, rIdx) =>
-          row.map((val, cIdx) => (
-            <div
-              key={`${rIdx}-${cIdx}`}
-              className={`cell ${isInPath(rIdx, cIdx) ? "selected" : val ? "fixed" : ""}`}
-              onMouseDown={() => handleMouseDown(rIdx, cIdx)}
-              onMouseEnter={() => handleMouseEnter(rIdx, cIdx)}
-            >
-              {val || path.findIndex(p => p.row === rIdx && p.col === cIdx) + 1 || ""}
-            </div>
-          ))
+          row.map((cell, cIdx) => {
+            const pos = [rIdx, cIdx];
+            const isStart = rIdx === 0 && cIdx === 0;
+            const isEnd = rIdx === 4 && cIdx === 4;
+            const inPath = path.some((p) => isSameCell(p, pos));
+            return (
+              <div
+                key={`${rIdx}-${cIdx}`}
+                className={`cell 
+                  ${isStart ? "start" : ""}
+                  ${isEnd ? "end" : ""}
+                  ${inPath ? "selected" : ""}`}
+                onMouseDown={() => handleMouseDown(rIdx, cIdx)}
+                onMouseEnter={() => handleCellEnter(rIdx, cIdx)}
+              >
+                {isStart ? "1" : isEnd ? "25" : ""}
+              </div>
+            );
+          })
         )}
       </div>
     </div>
